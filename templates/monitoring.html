@@ -1,0 +1,819 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1><i class="fas fa-search"></i> Мониторинг событий</h1>
+        
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Всего событий</h5>
+                        <h2 class="mb-0">{{ event_stats.total }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Открытия</h5>
+                        <h2 class="mb-0">{{ event_stats.open }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Статус системы</h5>
+                        <h5 class="mb-0"><span id="monitor-status">🟢 Мониторинг активен</span></h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">История событий открытия</h5>
+                <div>
+                    <button id="refresh-btn" class="btn btn-primary btn-sm">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </button>
+                    <button id="clear-filter" class="btn btn-secondary btn-sm ms-2">
+                        <i class="fas fa-filter"></i> Сбросить фильтры
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if error %}
+                    <div class="alert alert-danger">
+                        <strong>Ошибка:</strong> {{ error }}
+                    </div>
+                {% endif %}
+                
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <input type="date" id="date-filter" class="form-control" placeholder="Фильтр по дате">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" id="search-filter" class="form-control" placeholder="Поиск по файлу или IP">
+                    </div>
+                    <div class="col-md-3">
+                        <select id="severity-filter" class="form-select">
+                            <option value="all">Все события</option>
+                            <option value="open">Открытия</option>
+                            <option value="delete">Удаления</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="user-filter" class="form-select">
+                            <option value="all">Все пользователи</option>
+                            {% set users = [] %}
+                            {% for event in events %}
+                                {% if event.username and event.username not in users %}
+                                    {% set _ = users.append(event.username) %}
+                                    <option value="{{ event.username }}">{{ event.username }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover" id="events-table">
+                        <thead>
+                            <tr>
+                                <th>Время</th>
+                                <th>Тип события</th>
+                                <th>Файл</th>
+                                <th>ID токена</th>
+                                <th>IP адрес</th>
+                                <th>Геолокация</th>
+                                <th>Процесс</th>
+                                <th>Пользователь</th>
+                            </tr>
+                        </thead>
+                        <tbody id="events-body">
+                            {% if events %}
+                                {% for event in events %}
+                                <tr class="event-row" data-type="{{ event.event_type }}" data-guid="{{ event.guid }}" style="cursor: pointer;">
+                                    <td>
+                                        <small>{{ event.triggered_at }}</small>
+                                    </td>
+                                    <td>
+                                        {% if event.event_type == 'open' %}
+                                            <span class="badge bg-warning">📖 Открытие</span>
+                                        {% elif event.event_type == 'delete' %}
+                                            <span class="badge bg-danger">🗑️ Удаление</span>
+                                        {% else %}
+                                            <span class="badge bg-info">ℹ️ {{ event.event_type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ event.location.split('/')[-1] }}</small><br>
+                                        <small class="text-muted">{{ event.location[:50] }}{% if event.location|length > 50 %}...{% endif %}</small>
+                                    </td>
+                                    <td>
+                                        <code class="small">{{ event.guid[:8] }}...</code>
+                                    </td>
+                                    <td>
+                                        {% if event.ip %}
+                                            <code class="small">{{ event.ip }}</code>
+                                        {% else %}
+                                            <span class="text-muted small">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if event.city and event.country %}
+                                            <small>{{ event.city }}, {{ event.country }}</small>
+                                        {% else %}
+                                            <span class="text-muted small">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if event.process_name %}
+                                            <small>{{ event.process_name }}</small><br>
+                                            <small class="text-muted">PID: {{ event.process_pid }}</small>
+                                        {% else %}
+                                            <span class="text-muted small">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ event.username or 'N/A' }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-4">
+                                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">События не найдены</p>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div>
+                        <small class="text-muted" id="event-count">Показано {{ events|length }} событий</small>
+                    </div>
+                    <div>
+                        <button id="load-more" class="btn btn-outline-secondary btn-sm" style="display: none;">
+                            <i class="fas fa-plus"></i> Загрузить еще
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Статистика событий по дням</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="eventsChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для деталей события -->
+<div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-labelledby="eventDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="eventDetailsModalLabel">
+                    <i class="fas fa-info-circle me-2"></i>Детали инцидента
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body" id="event-details-content">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-2">Загрузка информации об инциденте...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Закрыть
+                </button>
+                <button type="button" class="btn btn-primary" id="copy-token-id">
+                    <i class="fas fa-copy me-1"></i>Копировать ID
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let eventsChart = null;
+    let currentPage = 1;
+    let currentTokenGuid = null;
+    let allEventsData = [];
+    
+    // Функция загрузки деталей токена
+    function loadTokenDetails(tokenGuid) {
+        if (!tokenGuid) return;
+        
+        currentTokenGuid = tokenGuid;
+        const modalContent = document.getElementById('event-details-content');
+        
+        modalContent.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+                <p class="mt-2">Загрузка информации об инциденте...</p>
+            </div>
+        `;
+        
+        fetch(`/monitoring/token/${tokenGuid}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const token = data.token;
+                    displayTokenDetails(token);
+                } else {
+                    modalContent.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h6>Ошибка загрузки данных</h6>
+                            <p class="mb-0">${data.error || 'Неизвестная ошибка'}</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка загрузки деталей токена:', error);
+                modalContent.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h6>Ошибка загрузки данных</h6>
+                        <p class="mb-0">${error.message || 'Сетевая ошибка'}</p>
+                    </div>
+                `;
+            });
+    }
+    
+    // Функция отображения деталей токена
+    function displayTokenDetails(token) {
+        const modalContent = document.getElementById('event-details-content');
+        
+        // Определяем тип события и цвет бейджа
+        let eventTypeBadge = '';
+        if (token.event_type === 'open') {
+            eventTypeBadge = '<span class="badge bg-warning">📖 Открытие</span>';
+        } else if (token.event_type === 'delete') {
+            eventTypeBadge = '<span class="badge bg-danger">🗑️ Удаление</span>';
+        } else {
+            eventTypeBadge = `<span class="badge bg-info">ℹ️ ${token.event_type || 'unknown'}</span>`;
+        }
+        
+        let geoHtml = '<span class="text-muted">N/A</span>';
+        if (token.city && token.city !== 'N/A' && token.city !== 'Unknown') {
+            geoHtml = `${token.city}, ${token.country}`;
+            if (token.latitude && token.longitude && token.latitude !== 'N/A' && token.longitude !== 'N/A') {
+                geoHtml += `<br><small class="text-muted">Координаты: ${token.latitude}, ${token.longitude}</small>`;
+            }
+        }
+        
+        let processHtml = '<span class="text-muted">N/A</span>';
+        if (token.process_name && token.process_name !== 'N/A') {
+            processHtml = `${token.process_name}<br><small class="text-muted">PID: ${token.process_pid}</small>`;
+        }
+        
+        let ipHtml = '<span class="text-muted">N/A</span>';
+        if (token.ip_address && token.ip_address !== 'N/A') {
+            ipHtml = `<code>${token.ip_address}</code>`;
+        }
+        
+        // Информация о созданных ловушках
+        let trapsHtml = '<span class="text-muted">Нет данных</span>';
+        if (token.location) {
+            const fileName = token.location.split('/').pop();
+            const baseName = fileName.split('.').slice(0, -1).join('.');
+            const ext = fileName.split('.').pop();
+            
+            // Проверяем существующие ловушки
+            fetch('/folder-info?path=' + encodeURIComponent(token.location))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.traps_count !== undefined) {
+                        const trapsCountElement = document.getElementById('traps-count');
+                        if (trapsCountElement) {
+                            trapsCountElement.textContent = data.traps_count;
+                        }
+                    }
+                })
+                .catch(console.error);
+        }
+        
+        const html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Основная информация</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <strong><i class="fas fa-fingerprint me-2 text-primary"></i>ID токена:</strong><br>
+                            <code class="d-block mt-1 p-2 bg-light rounded">${token.guid}</code>
+                        </li>
+                        <li class="mb-2">
+                            <strong><i class="fas fa-calendar-alt me-2 text-primary"></i>Создан:</strong><br>
+                            <span>${token.created_at}</span>
+                        </li>
+                        <li class="mb-2">
+                            <strong><i class="fas fa-clock me-2 text-primary"></i>Время срабатывания:</strong><br>
+                            <span>${token.triggered_at}</span>
+                        </li>
+                        <li class="mb-2">
+                            <strong><i class="fas fa-exclamation-triangle me-2 text-primary"></i>Тип события:</strong><br>
+                            ${eventTypeBadge}
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Сетевая информация</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <strong><i class="fas fa-network-wired me-2 text-primary"></i>IP адрес:</strong><br>
+                            ${ipHtml}
+                        </li>
+                        <li class="mb-2">
+                            <strong><i class="fas fa-globe me-2 text-primary"></i>Геолокация:</strong><br>
+                            ${geoHtml}
+                        </li>
+                        <li class="mb-2">
+                            <strong><i class="fas fa-shield-alt me-2 text-primary"></i>Создано ловушек:</strong><br>
+                            <span id="traps-count">0</span> из 2 возможных
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <h6>Информация о процессе</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <strong><i class="fas fa-tasks me-2 text-primary"></i>Процесс:</strong><br>
+                            ${processHtml}
+                        </li>
+                        <li class="mb-2">
+                            <strong><i class="fas fa-user me-2 text-primary"></i>Пользователь:</strong><br>
+                            <span>${token.username || 'N/A'}</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Файловая информация</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <strong><i class="fas fa-file me-2 text-primary"></i>Файл:</strong><br>
+                            <span class="d-block mt-1">${token.location.split('/').pop()}</span>
+                        </li>
+                        <li class="mb-2">
+                            <strong><i class="fas fa-folder me-2 text-primary"></i>Полный путь:</strong><br>
+                            <small class="d-block mt-1 text-muted">${token.location}</small>
+                        </li>
+                        <li class="mb-2">
+                            <strong><i class="fas fa-database me-2 text-primary"></i>Тип токена:</strong><br>
+                            <span class="badge bg-info">${token.type}</span>
+                        </li>
+                        <li class="mb-2">
+                            <strong><i class="fas fa-check-circle me-2 text-primary"></i>Статус:</strong><br>
+                            <span class="badge ${token.triggered ? 'bg-danger' : 'bg-success'}">
+                                ${token.triggered ? 'Сработал' : 'Активен'}
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="alert alert-info mt-3">
+                <h6><i class="fas fa-info-circle me-2"></i>Примечание:</h6>
+                <p class="mb-0">При срабатывании файла-ловушки создается до 2 дополнительных файлов-ловушек в той же папке. Система предотвращает бесконечное создание файлов.</p>
+            </div>
+        `;
+        
+        modalContent.innerHTML = html;
+    }
+    
+    // Функция копирования ID токена
+    function copyTokenId() {
+        if (!currentTokenGuid) return;
+        
+        navigator.clipboard.writeText(currentTokenGuid)
+            .then(() => {
+                const copyBtn = document.getElementById('copy-token-id');
+                const originalHtml = copyBtn.innerHTML;
+                
+                copyBtn.innerHTML = '<i class="fas fa-check me-1"></i>Скопировано!';
+                copyBtn.classList.remove('btn-primary');
+                copyBtn.classList.add('btn-success');
+                
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalHtml;
+                    copyBtn.classList.remove('btn-success');
+                    copyBtn.classList.add('btn-primary');
+                }, 2000);
+            })
+            .catch(err => {
+                console.error('Ошибка копирования:', err);
+                alert('Не удалось скопировать ID токена');
+            });
+    }
+    
+    // Функция загрузки событий
+    function loadEvents(page = 1, forceRefresh = false) {
+        if (forceRefresh || page === 1) {
+            currentPage = 1;
+        }
+        
+        fetch(`/monitoring/events?page=${currentPage}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (page === 1) {
+                        allEventsData = data.events;
+                    } else {
+                        allEventsData = allEventsData.concat(data.events);
+                    }
+                    updateEventsTable(allEventsData);
+                    updateEventCount(allEventsData.length, data.count);
+                    updateChart(allEventsData);
+                    
+                    if (data.events.length >= 50) {
+                        document.getElementById('load-more').style.display = 'block';
+                    } else {
+                        document.getElementById('load-more').style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка загрузки событий:', error);
+                showError('Ошибка загрузки данных');
+            });
+    }
+    
+    // Функция обновления таблицы событий
+    function updateEventsTable(events) {
+        const tbody = document.getElementById('events-body');
+        if (events.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">События не найдены</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        let html = '';
+        events.forEach(event => {
+            // Определяем тип события и бейдж
+            let eventTypeBadge = '';
+            if (event.event_type === 'open') {
+                eventTypeBadge = '<span class="badge bg-warning">📖 Открытие</span>';
+            } else if (event.event_type === 'delete') {
+                eventTypeBadge = '<span class="badge bg-danger">🗑️ Удаление</span>';
+            } else {
+                eventTypeBadge = `<span class="badge bg-info">ℹ️ ${event.event_type || 'unknown'}</span>`;
+            }
+            
+            const fileName = event.location.split('/').pop();
+            const shortLocation = event.location.length > 50 ? 
+                event.location.substring(0, 50) + '...' : event.location;
+            
+            const ipHtml = event.ip ? `<code class="small">${event.ip}</code>` : '<span class="text-muted small">N/A</span>';
+            const geoHtml = event.city && event.country ? `<small>${event.city}, ${event.country}</small>` : '<span class="text-muted small">N/A</span>';
+            const processHtml = event.process_name ? `<small>${event.process_name}</small><br><small class="text-muted">PID: ${event.process_pid}</small>` : '<span class="text-muted small">N/A</span>';
+            
+            html += `
+                <tr class="event-row" data-type="${event.event_type}" data-guid="${event.guid}" style="cursor: pointer;">
+                    <td><small>${event.triggered_at}</small></td>
+                    <td>${eventTypeBadge}</td>
+                    <td>
+                        <small>${fileName}</small><br>
+                        <small class="text-muted">${shortLocation}</small>
+                    </td>
+                    <td><code class="small">${event.guid.substring(0, 8)}...</code></td>
+                    <td>${ipHtml}</td>
+                    <td>${geoHtml}</td>
+                    <td>${processHtml}</td>
+                    <td><small>${event.username || 'N/A'}</small></td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        attachEventListeners();
+        filterEvents(); // Применяем фильтры после обновления
+    }
+    
+    // Функция обновления счетчика событий
+    function updateEventCount(visibleCount, totalCount) {
+        const countElement = document.getElementById('event-count');
+        if (visibleCount === totalCount) {
+            countElement.textContent = `Показано ${visibleCount} событий`;
+        } else {
+            countElement.textContent = `Показано ${visibleCount} из ${totalCount} событий`;
+        }
+    }
+    
+    // Функция фильтрации событий
+    function filterEvents() {
+        const dateFilter = document.getElementById('date-filter').value;
+        const searchFilter = document.getElementById('search-filter').value.toLowerCase();
+        const severityFilter = document.getElementById('severity-filter').value;
+        const userFilter = document.getElementById('user-filter').value;
+        
+        let visibleCount = 0;
+        
+        document.querySelectorAll('.event-row').forEach(row => {
+            let show = true;
+            
+            // Фильтр по дате
+            if (dateFilter) {
+                const eventDate = row.cells[0].textContent.substring(0, 10);
+                if (eventDate !== dateFilter) {
+                    show = false;
+                }
+            }
+            
+            // Поиск по тексту
+            if (searchFilter) {
+                const rowText = row.textContent.toLowerCase();
+                if (!rowText.includes(searchFilter)) {
+                    show = false;
+                }
+            }
+            
+            // Фильтр по типу события
+            if (severityFilter !== 'all') {
+                const eventType = row.dataset.type;
+                if (eventType !== severityFilter) {
+                    show = false;
+                }
+            }
+            
+            // Фильтр по пользователю
+            if (userFilter !== 'all') {
+                const username = row.cells[7].textContent.trim();
+                if (username !== userFilter) {
+                    show = false;
+                }
+            }
+            
+            row.style.display = show ? '' : 'none';
+            if (show) visibleCount++;
+        });
+        
+        // Обновляем счетчик видимых событий
+        updateEventCount(visibleCount, allEventsData.length);
+    }
+    
+    // Функция привязки обработчиков событий
+    function attachEventListeners() {
+        document.querySelectorAll('.event-row').forEach(row => {
+            row.addEventListener('click', function() {
+                const tokenGuid = this.dataset.guid;
+                if (tokenGuid) {
+                    loadTokenDetails(tokenGuid);
+                    const modal = new bootstrap.Modal(document.getElementById('eventDetailsModal'));
+                    modal.show();
+                }
+            });
+        });
+    }
+    
+    // Функция обновления графика
+    function updateChart(events) {
+        const ctx = document.getElementById('eventsChart').getContext('2d');
+        
+        // Группируем события по дням
+        const eventsByDay = {};
+        const eventTypes = {};
+        
+        events.forEach(event => {
+            const date = event.triggered_at.substring(0, 10); // YYYY-MM-DD
+            if (!eventsByDay[date]) {
+                eventsByDay[date] = { open: 0, delete: 0, other: 0 };
+            }
+            
+            const eventType = event.event_type || 'other';
+            if (eventTypes[eventType] === undefined) {
+                eventTypes[eventType] = Object.keys(eventTypes).length;
+            }
+            
+            if (eventType === 'open') {
+                eventsByDay[date].open++;
+            } else if (eventType === 'delete') {
+                eventsByDay[date].delete++;
+            } else {
+                eventsByDay[date].other++;
+            }
+        });
+        
+        // Получаем последние 7 дней
+        const dates = Object.keys(eventsByDay).sort().slice(-7);
+        
+        if (dates.length === 0) {
+            // Если нет данных, показываем пустой график
+            if (eventsChart) {
+                eventsChart.destroy();
+            }
+            
+            eventsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Нет данных'],
+                    datasets: [
+                        {
+                            label: 'Открытия',
+                            data: [0],
+                            borderColor: 'rgb(255, 193, 7)',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Удаления',
+                            data: [0],
+                            borderColor: 'rgb(220, 53, 69)',
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Статистика событий по дням'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Количество событий'
+                            }
+                        }
+                    }
+                }
+            });
+            return;
+        }
+        
+        // Подготавливаем данные для графика
+        const openData = dates.map(date => eventsByDay[date]?.open || 0);
+        const deleteData = dates.map(date => eventsByDay[date]?.delete || 0);
+        const otherData = dates.map(date => eventsByDay[date]?.other || 0);
+        
+        // Форматируем даты для отображения
+        const formattedDates = dates.map(date => {
+            const [year, month, day] = date.split('-');
+            return `${day}.${month}`;
+        });
+        
+        if (eventsChart) {
+            eventsChart.destroy();
+        }
+        
+        eventsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: formattedDates,
+                datasets: [
+                    {
+                        label: 'Открытия',
+                        data: openData,
+                        borderColor: 'rgb(255, 193, 7)',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Удаления',
+                        data: deleteData,
+                        borderColor: 'rgb(220, 53, 69)',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Статистика событий по дням'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Количество событий'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Функция показа ошибки
+    function showError(message) {
+        const eventsBody = document.getElementById('events-body');
+        if (eventsBody) {
+            eventsBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4">
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ${message}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+    
+    // Обработчики событий
+    document.addEventListener('DOMContentLoaded', function() {
+        // Инициализация графика с данными из шаблона
+        updateChart({{ events|tojson|safe }});
+        
+        // Привязка обработчиков
+        attachEventListeners();
+        
+        // Кнопка копирования ID
+        document.getElementById('copy-token-id').addEventListener('click', copyTokenId);
+        
+        // Кнопка обновления
+        document.getElementById('refresh-btn').addEventListener('click', function() {
+            const btn = this;
+            const originalHtml = btn.innerHTML;
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Обновление...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                loadEvents(1, true);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }, 500);
+        });
+        
+        // Кнопка загрузки еще
+        document.getElementById('load-more').addEventListener('click', function() {
+            currentPage++;
+            loadEvents(currentPage);
+        });
+        
+        // Кнопка сброса фильтров
+        document.getElementById('clear-filter').addEventListener('click', function() {
+            document.getElementById('date-filter').value = '';
+            document.getElementById('search-filter').value = '';
+            document.getElementById('severity-filter').value = 'all';
+            document.getElementById('user-filter').value = 'all';
+            filterEvents();
+        });
+        
+        // Фильтры
+        document.getElementById('date-filter').addEventListener('change', filterEvents);
+        document.getElementById('search-filter').addEventListener('input', filterEvents);
+        document.getElementById('severity-filter').addEventListener('change', filterEvents);
+        document.getElementById('user-filter').addEventListener('change', filterEvents);
+        
+        // Автообновление каждые 60 секунд
+        setInterval(() => {
+            loadEvents(1, true);
+        }, 60000);
+        
+        // Статус мониторинга
+        setInterval(() => {
+            const status = document.getElementById('monitor-status');
+            const now = new Date();
+            status.innerHTML = `🟢 Мониторинг активен (${now.toLocaleTimeString()})`;
+        }, 1000);
+        
+        // Инициализация данных
+        allEventsData = {{ events|tojson|safe }};
+    });
+</script>
+{% endblock %}

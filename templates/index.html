@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐝 HoneyToken Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .stat-label {
+            font-size: 1.1em;
+            color: #666;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: 2px solid white;
+        }
+        
+        .btn:hover {
+            background: transparent;
+            color: white;
+        }
+        
+        .tokens-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .tokens-section h2 {
+            margin-bottom: 20px;
+            color: #333;
+            text-align: center;
+        }
+        
+        .tokens-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .tokens-table th,
+        .tokens-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .tokens-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .status-triggered {
+            background: #ffebee;
+            color: #c62828;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        .status-active {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        .no-tokens {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+            font-size: 1.1em;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tokens-table {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐝 HoneyToken Dashboard</h1>
+            <p>Система мониторинга файловых ловушек</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total }}</div>
+                <div class="stat-label">Всего токенов</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.active }}</div>
+                <div class="stat-label">Активных токенов</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.triggered }}</div>
+                <div class="stat-label">Сработавших токенов</div>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <a href="/folders" class="btn">📁 Управление папками ловушек</a>
+            <a href="/monitoring" class="btn">🔍 Мониторинг событий</a>
+            <a href="/map" class="btn">🗺️ Карта угроз</a>
+            <a href="/health" class="btn">❤️ Состояние базы данных</a>
+        </div>
+        
+        <div class="tokens-section">
+            <h2>📋 Список всех токенов</h2>
+            {% if tokens %}
+            <table class="tokens-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Тип</th>
+                        <th>Путь</th>
+                        <th>Статус</th>
+                        <th>Создан</th>
+                        <th>IP</th>
+                        <th>Тип события</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for token in tokens %}
+                    <tr>
+                        <td>{{ token[1][:8] }}...</td>
+                        <td>{{ token[2] }}</td>
+                        <td title="{{ token[3] }}">{{ token[3][:50] }}{% if token[3]|length > 50 %}...{% endif %}</td>
+                        <td>
+                            {% if token[5] %}
+                                <span class="status-triggered">🚨 Сработал</span>
+                            {% else %}
+                                <span class="status-active">✅ Активен</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ token[4] }}</td>
+                        <td>{{ token[7] if token[7] else 'N/A' }}</td>
+                        <td>
+                            {% if token[15] %}
+                                <!-- Все события теперь только открытия -->
+                                <span style="background: #fff3cd; color: #856404; padding: 3px 8px; border-radius: 4px; font-size: 0.8em;">📖 Открытие</span>
+                            {% else %}
+                                <span style="color: #6c757d;">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-tokens">
+                🐝 Токены не найдены. Создайте первый honeytoken!
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

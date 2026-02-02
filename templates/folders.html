@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1><i class="fas fa-folder"></i> Управление папками ловушек</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Создать новую папку</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('manage_folders') }}">
+                            {{ form.hidden_tag() }}
+                            
+                            <div class="mb-3">
+                                <label for="folder_name" class="form-label">Имя папки</label>
+                                {{ form.folder_name(class="form-control", id="folder_name", placeholder="Введите имя папки") }}
+                                <small class="form-text text-muted">
+                                    Папка будет создана в: {{ config.get('token_generation', {}).get('default_file_path', 'C:\\honey_tokens\\') }}
+                                </small>
+                                {% if form.folder_name.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.folder_name.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="d-grid">
+                                {{ form.submit(class="btn btn-primary") }}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Существующие папки</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if folders %}
+                            <div class="list-group">
+                                {% for folder in folders %}
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="fas fa-folder-open text-warning me-2"></i>
+                                            <a href="{{ url_for('view_folder', folder_path=folder) }}" class="text-decoration-none">
+                                                {{ folder }}
+                                            </a>
+                                        </div>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('view_folder', folder_path=folder) }}" 
+                                               class="btn btn-outline-primary" title="Открыть папку">
+                                                <i class="fas fa-folder-open"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                    title="Удалить папку"
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#deleteModal{{ loop.index }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Модальное окно подтверждения удаления -->
+                                        <div class="modal fade" id="deleteModal{{ loop.index }}" tabindex="-1" 
+                                             aria-labelledby="deleteModalLabel{{ loop.index }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header bg-danger text-white">
+                                                        <h5 class="modal-title" id="deleteModalLabel{{ loop.index }}">
+                                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                                            Подтверждение удаления
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white" 
+                                                                data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="alert alert-warning">
+                                                            <i class="fas fa-exclamation-circle me-2"></i>
+                                                            <strong>Внимание!</strong> Вы собираетесь удалить папку:
+                                                        </div>
+                                                        <p><strong>{{ folder }}</strong></p>
+                                                        <p>Все файлы-ловушки в этой папке будут удалены.</p>
+                                                        <p class="text-danger">
+                                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                                            Это действие нельзя отменить!
+                                                        </p>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" 
+                                                                data-bs-dismiss="modal">
+                                                            <i class="fas fa-times me-1"></i>Отмена
+                                                        </button>
+                                                        <form method="POST" 
+                                                              action="{{ url_for('delete_folder', folder_path=folder) }}" 
+                                                              style="display: inline;">
+                                                            <input type="hidden" name="confirm" value="true">
+                                                            <button type="submit" class="btn btn-danger">
+                                                                <i class="fas fa-trash me-1"></i>Удалить папку
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">Папки не найдены</p>
+                                <p class="text-muted small">Создайте первую папку для размещения файлов-ловушек</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="card mt-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Статистика папок</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h3>{{ folders|length }}</h3>
+                                <small class="text-muted">Всего папок</small>
+                            </div>
+                            <div class="col-6">
+                                <h3>{{ total_tokens if total_tokens is defined else 0 }}</h3>
+                                <small class="text-muted">Всего токенов</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

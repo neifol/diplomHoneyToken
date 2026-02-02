@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('manage_folders') }}">Папки</a></li>
+                <li class="breadcrumb-item active">{{ folder_path }}</li>
+            </ol>
+        </nav>
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-folder-open"></i> Папка: {{ folder_path }}</h1>
+            <a href="{{ url_for('manage_folders') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Назад к списку папок
+            </a>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Создать файл-ловушку</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('view_folder', folder_path=folder_path) }}">
+                            {{ form.hidden_tag() }}
+                            
+                            <div class="mb-3">
+                                <label for="filename" class="form-label">Имя файла</label>
+                                {{ form.filename(class="form-control", id="filename", placeholder="Введите имя файла") }}
+                                {% if form.filename.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.filename.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="file_format" class="form-label">Формат файла</label>
+                                {{ form.file_format(class="form-select", id="file_format") }}
+                                {% if form.file_format.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.file_format.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-text">
+                                    <strong>Будет создан файл:</strong><br>
+                                    <code id="file-preview">{{ folder_path }}/<span id="preview-filename">example</span>.<span id="preview-format">txt</span></code>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid">
+                                {{ form.submit(class="btn btn-success") }}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Информация о папке</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <strong><i class="fas fa-folder me-2"></i>Путь:</strong><br>
+                                <small class="text-muted">{{ folder_path }}</small>
+                            </li>
+                            <li class="mb-2">
+                                <strong><i class="fas fa-file me-2"></i>Файлов:</strong>
+                                <span class="badge bg-primary">{{ files|length }}</span>
+                            </li>
+                            <li>
+                                <strong><i class="fas fa-info-circle me-2"></i>Размер:</strong>
+                                <span id="folder-size">Загрузка...</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Файлы в папке ({{ files|length }})</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if files %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Имя файла</th>
+                                            <th>Тип</th>
+                                            <th>Размер</th>
+                                            <th>Создан</th>
+                                            <th>Статус</th>
+                                            <th>Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for file in files %}
+                                            <tr>
+                                                <td>
+                                                    <i class="fas fa-file me-2 text-primary"></i>
+                                                    {{ file.name }}
+                                                </td>
+                                                <td>
+                                                    {% set ext = file.name.split('.')[-1] %}
+                                                    {% if ext in ['txt', 'pdf', 'xlsx', 'docx'] %}
+                                                        <span class="badge bg-info">{{ ext }}</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">{{ ext }}</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if file.size < 1024 %}
+                                                        {{ file.size }} Б
+                                                    {% elif file.size < 1048576 %}
+                                                        {{ (file.size / 1024)|round(1) }} КБ
+                                                    {% else %}
+                                                        {{ (file.size / 1048576)|round(1) }} МБ
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ file.created.strftime('%Y-%m-%d %H:%M') }}</td>
+                                                <td>
+                                                    {% if file.token_info and file.token_info[5] %}
+                                                        <span class="badge bg-danger">Сработал</span>
+                                                    {% elif file.token_info %}
+                                                        <span class="badge bg-success">Активен</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning">Не токен</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if file.token_info %}
+                                                        <a href="#" class="btn btn-sm btn-outline-info" title="Информация о токене">
+                                                            <i class="fas fa-info-circle"></i>
+                                                        </a>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-file-alt fa-4x text-muted mb-3"></i>
+                                <p class="text-muted">В папке нет файлов</p>
+                                <p class="text-muted small">Создайте первый файл-ловушку с помощью формы слева</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Обновление превью файла в реальном времени
+    document.getElementById('filename').addEventListener('input', function() {
+        document.getElementById('preview-filename').textContent = this.value || 'example';
+    });
+    
+    document.getElementById('file_format').addEventListener('change', function() {
+        document.getElementById('preview-format').textContent = this.value;
+    });
+    
+    // Загрузка информации о размере папки
+    fetch('/folder-info?path={{ folder_path }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('folder-size').textContent = data.size;
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки информации о папке:', error);
+            document.getElementById('folder-size').textContent = 'Ошибка';
+        });
+</script>
+{% endblock %}

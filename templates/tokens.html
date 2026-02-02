@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1><i class="fas fa-list"></i> Детальный список токенов</h1>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Все токены системы</h5>
+            </div>
+            <div class="card-body">
+                <div id="tokens-table">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-2">Загрузка данных...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Загрузка данных через API
+    fetch('/tokens')
+        .then(response => response.json())
+        .then(tokens => {
+            const table = document.getElementById('tokens-table');
+            if (tokens.error) {
+                table.innerHTML = `<div class="alert alert-danger">Ошибка: ${tokens.error}</div>`;
+                return;
+            }
+            
+            if (tokens.length === 0) {
+                table.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Токены не найдены</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>GUID</th>
+                                <th>Тип</th>
+                                <th>Расположение</th>
+                                <th>Статус</th>
+                                <th>Создан</th>
+                                <th>IP</th>
+                                <th>Геолокация</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            tokens.forEach(token => {
+                html += `
+                    <tr class="${token.triggered ? 'token-triggered' : 'token-active'}">
+                        <td><small>${token.guid.substring(0, 8)}...</small></td>
+                        <td>
+                            <span class="badge ${token.type === 'file' ? 'badge-file' : 'badge-network'}">
+                                ${token.type}
+                            </span>
+                        </td>
+                        <td><small>${token.location}</small></td>
+                        <td>
+                            ${token.triggered ? 
+                                '<span class="badge badge-triggered">Сработал</span>' : 
+                                '<span class="badge badge-active">Активен</span>'
+                            }
+                        </td>
+                        <td><small>${token.created}</small></td>
+                        <td><small>${token.ip || '-'}</small></td>
+                        <td><small>${token.city ? `${token.city}, ${token.country}` : '-'}</small></td>
+                    </tr>
+                `;
+            });
+            
+            html += `</tbody></table></div>`;
+            table.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('tokens-table').innerHTML = 
+                `<div class="alert alert-danger">Ошибка загрузки: ${error}</div>`;
+        });
+</script>
+{% endblock %}

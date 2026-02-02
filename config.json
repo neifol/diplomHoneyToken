@@ -1,0 +1,56 @@
+{
+  "database": {
+    "path": "honeytokens.db",
+    "encryption_key": "your_secret_key_here"
+  },
+  "telegram": {
+    "bot_token": "8348079971:AAEPq0sMXZmg4SEpHcDt2sOdxbEx2Zx6sAc",
+    "chat_id": "5537395233"
+  },
+  "monitoring": {
+    "scan_interval_seconds": 3,
+    "access_check_interval": 2,
+    "file_paths_to_monitor": [
+      "C:\\honey_tokens\\"
+    ],
+    "enable_access_time_check": true,
+    "enable_process_monitoring": true,
+    "enable_file_lock_check": true,
+    "simple_formats": [".txt", ".pdf", ".log", ".csv", ".json", ".xml"],
+    "debounce_seconds": 2,
+    "alert_cooldown_seconds": 30
+  },
+  "token_generation": {
+    "default_file_path": "C:\\honey_tokens\\",
+    "file_formats": [
+      "txt",
+      "pdf",
+      "xlsx",
+      "docx"
+    ],
+    "use_faker": true,
+    "pdf_lib": "fpdf",
+    "xlsx_rows": 10,
+    "obfuscate_guid": true
+  },
+  "traps": {
+    "levels": 2,
+    "naming_pattern": "backup_{original}_v{num}.{ext}"
+  },
+  "traps_folders": [
+    "C:\\honey_tokens\\"
+  ],
+  "dashboard": {
+    "port": 5000,
+    "secret_key": "honeytoken_secret_key_2024",
+    "host": "127.0.0.1"
+  },
+  "geo": {
+    "api_url": "https://ipinfo.io/{ip}/json",
+    "timeout": 5
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "honey_token.log"
+  }
+}

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Подтверждение удаления папки</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <h5><i class="fas fa-exclamation-circle me-2"></i>Внимание!</h5>
+                    <p class="mb-0">Вы собираетесь удалить папку с файлами-ловушками.</p>
+                </div>
+                
+                <div class="mb-4">
+                    <h6>Информация о папке:</h6>
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <strong><i class="fas fa-folder me-2"></i>Имя папки:</strong>
+                            {{ folder_name }}
+                        </li>
+                        <li class="list-group-item">
+                            <strong><i class="fas fa-file me-2"></i>Количество файлов:</strong>
+                            {% if files_count > 0 %}
+                                <span class="badge bg-warning">{{ files_count }} файлов</span>
+                            {% else %}
+                                <span class="badge bg-success">Пустая папка</span>
+                            {% endif %}
+                        </li>
+                        <li class="list-group-item">
+                            <strong><i class="fas fa-database me-2"></i>Количество токенов:</strong>
+                            {% if token_count > 0 %}
+                                <span class="badge bg-danger">{{ token_count }} токенов</span>
+                            {% else %}
+                                <span class="badge bg-success">Нет токенов</span>
+                            {% endif %}
+                        </li>
+                        <li class="list-group-item">
+                            <strong><i class="fas fa-exclamation-triangle me-2"></i>Предупреждение:</strong>
+                            {% if files_count > 0 %}
+                                Все {{ files_count }} файлов и {{ token_count }} токенов в папке будут удалены безвозвратно!
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="mb-4">
+                    <h6>Полный путь:</h6>
+                    <div class="alert alert-light">
+                        <code>{{ folder_path }}</code>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <form method="POST" action="{{ url_for('delete_folder', folder_path=folder_name) }}">
+                        <input type="hidden" name="confirm" value="true">
+                        <button type="submit" class="btn btn-danger btn-lg w-100">
+                            <i class="fas fa-trash me-2"></i>Удалить папку и все файлы
+                        </button>
+                    </form>
+                    
+                    <a href="{{ url_for('manage_folders') }}" class="btn btn-secondary btn-lg w-100">
+                        <i class="fas fa-times me-2"></i>Отмена - вернуться к списку папок
+                    </a>
+                </div>
+                
+                <div class="mt-4">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Важная информация:</h6>
+                        <ul class="mb-0">
+                            <li>После удаления необходимо <strong>перезапустить службу мониторинга</strong> для применения изменений.</li>
+                            <li>Все токены, связанные с этой папкой, будут удалены из базы данных.</li>
+                            <li>Это действие <strong>необратимо</strong> - восстановить данные будет невозможно.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
